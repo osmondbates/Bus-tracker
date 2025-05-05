@@ -41,7 +41,7 @@
     const stopsContainer = document.getElementById("stops");
 
     async function fetchArrivalTimes(stopId) {
-      const url = `https://corsproxy.io/?https://api.511.org/transit/StopMonitoring?api_key=${token}&agency=MUNI&stopCode=${stopId}`;
+      const url = `https://corsproxy.io/?https://api.511.org/transit/StopMonitoring?api_key=${token}&agency=SF&stopCode=${stopId}`;
       
       try {
         const response = await fetch(url);
