@@ -40,30 +40,32 @@
     const token = "c9b7f6c6-5dc7-409e-9ea5-e835b086a409";
     const stopsContainer = document.getElementById("stops");
 
-    async function fetchArrivalTimes(stopId) {
-      const url = `https://corsproxy.io/?https://api.511.org/transit/StopMonitoring?api_key=${token}&agency=SF&stopCode=${stopId}`;
-      
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("API error");
-        const text = await response.text();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, "application/xml");
+  async function fetchArrivalTimes(stopId) {
+  const url = `https://corsproxy.io/?https://api.511.org/transit/StopMonitoring?api_key=${token}&agency=SF&stopCode=${stopId}`;
+  
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("API error");
+    const text = await response.text();
+    
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(text, "application/xml");
 
-        const arrivals = Array.from(xml.getElementsByTagName("MonitoredStopVisit")).map(visit => {
-          const line = visit.getElementsByTagName("PublishedLineName")[0]?.textContent;
-          const destination = visit.getElementsByTagName("DestinationName")[0]?.textContent;
-          const expected = visit.getElementsByTagName("ExpectedArrivalTime")[0]?.textContent || "N/A";
-          return { line, destination, expected };
-        });
+    const visits = xml.getElementsByTagNameNS("*", "MonitoredStopVisit");
 
-        return arrivals;
-      } catch (err) {
-        console.error("Fetch error:", err);
-        return null;
-      }
-    }
+    const arrivals = Array.from(visits).map(visit => {
+      const line = visit.getElementsByTagNameNS("*", "PublishedLineName")[0]?.textContent;
+      const destination = visit.getElementsByTagNameNS("*", "DestinationName")[0]?.textContent;
+      const expected = visit.getElementsByTagNameNS("*", "ExpectedArrivalTime")[0]?.textContent;
+      return { line, destination, expected };
+    });
 
+    return arrivals;
+  } catch (err) {
+    console.error("Fetch error:", err);
+    return null;
+  }
+}
     async function updateAllStops() {
       stopsContainer.innerHTML = "";
       const time = new Date().toLocaleTimeString();
