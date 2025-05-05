@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bay Area Bus Tracker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f7f7f7;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1 {
+            color: #0066cc;
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+        .bus-stops {
+            margin-top: 20px;
+        }
+        .stop {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .stop:last-child {
+            border-bottom: none;
+        }
+        .stop-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .arrival {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            padding: 8px;
+            background-color: #f3f3f3;
+            border-radius: 4px;
+        }
+        .bus-number {
+            background-color: #0066cc;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .time {
+            font-weight: 500;
+        }
+        .destination {
+            color: #666;
+            margin-left: auto;
+        }
+        .setup-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f7ff;
+            border-radius: 6px;
+            border-left: 4px solid #0066cc;
+        }
+        .settings {
+            margin-top: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button:hover {
+            background-color: #0055b3;
+        }
+        .stop-actions {
+            display: flex;
+            margin-top: 10px;
+            gap: 10px;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            padding: 10px;
+            background-color: #ffebee;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bay Area Bus Tracker</h1>
+        
+        <div id="setup-container" class="setup-section">
+            <h2>Setup Your Bus Tracker</h2>
+            <p>Enter your 511.org API key and add the bus stops you want to track.</p>
+            
+            <div class="settings">
+                <div class="form-group">
+                    <label for="api-key">511.org API Key:</label>
+                    <input type="text" id="api-key" placeholder="Enter your API key">
+                </div>
+                
+                <div class="form-group">
+                    <label for="agency">Transit Agency:</label>
+                    <select id="agency">
+                        <option value="">Select an agency</option>
+                        <option value="SF">San Francisco Muni (SF)</option>
+                        <option value="AC">AC Transit (AC)</option>
+                        <option value="BA">BART (BA)</option>
+                        <option value="CT">Caltrain (CT)</option>
+                        <option value="GG">Golden Gate Transit (GG)</option>
+                        <option value="SM">SamTrans (SM)</option>
+                        <option value="VT">Valley Transportation Authority (VT)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="stop-id">Stop ID:</label>
+                    <input type="text" id="stop-id" placeholder="Enter stop ID">
+                </div>
+                
+                <div class="form-group">
+                    <label for="stop-name">Stop Name (optional):</label>
+                    <input type="text" id="stop-name" placeholder="Enter a name for this stop">
+                </div>
+                
+                <button id="add-stop">Add Stop</button>
+            </div>
+            
+            <div class="form-group" style="margin-top: 20px;">
+                <button id="save-settings">Save Settings</button>
+                <button id="edit-settings" style="display: none; background-color: #757575;">Edit Settings</button>
+            </div>
+        </div>
+        
+        <div id="bus-stops" class="bus-stops" style="display: none;">
+            <div id="loading" class="loading">Loading bus arrival information...</div>
+        </div>
+    </div>
+
+    <script>
+        // Store stops and API key
+        let busStops = [];
+        let apiKey = '';
+        let refreshInterval;
+        
+        // DOM elements
+        const setupContainer = document.getElementById('setup-container');
+        const busStopsContainer = document.getElementById('bus-stops');
+        const loadingElement = document.getElementById('loading');
+        const apiKeyInput = document.getElementById('api-key');
+        const agencySelect = document.getElementById('agency');
+        const stopIdInput = document.getElementById('stop-id');
+        const stopNameInput = document.getElementById('stop-name');
+        const addStopButton = document.getElementById('add-stop');
+        const saveSettingsButton = document.getElementById('save-settings');
+        const editSettingsButton = document.getElementById('edit-settings');
+        
+        // Load saved settings if available
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('busTrackerSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                apiKey = settings.apiKey || '';
+                busStops = settings.stops || [];
+                
+                apiKeyInput.value = apiKey;
+                
+                if (apiKey && busStops.length > 0) {
+                    setupContainer.style.display = 'none';
+                    busStopsContainer.style.display = 'block';
+                    editSettingsButton.style.display = 'block';
+                    fetchAllBusArrivals();
+                    
+                    // Set up auto-refresh every 60 seconds
+                    refreshInterval = setInterval(fetchAllBusArrivals, 60000);
+                }
+            }
+        }
+        
+        // Save settings to localStorage
+        function saveSettings() {
+            apiKey = apiKeyInput.value.trim();
+            
+            if (!apiKey) {
+                showError('Please enter your 511.org API key');
+                return;
+            }
+            
+            if (busStops.length === 0) {
+                showError('Please add at least one bus stop');
+                return;
+            }
+            
+            const settings = {
+                apiKey,
+                stops: busStops
+            };
+            
+            localStorage.setItem('busTrackerSettings', JSON.stringify(settings));
+            
+            setupContainer.style.display = 'none';
+            busStopsContainer.style.display = 'block';
+            editSettingsButton.style.display = 'block';
+            
+            fetchAllBusArrivals();
+            
+            // Set up auto-refresh every 60 seconds
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            refreshInterval = setInterval(fetchAllBusArrivals, 60000);
+        }
+        
+        // Add a new stop to the list
+        function addStop() {
+            const agency = agencySelect.value;
+            const stopId = stopIdInput.value.trim();
+            const stopName = stopNameInput.value.trim() || `Stop ${stopId}`;
+            
+            if (!agency) {
+                showError('Please select a transit agency');
+                return;
+            }
+            
+            if (!stopId) {
+                showError('Please enter a stop ID');
+                return;
+            }
+            
+            busStops.push({
+                agency,
+                stopId,
+                name: stopName
+            });
+            
+            // Clear inputs
+            agencySelect.value = '';
+            stopIdInput.value = '';
+            stopNameInput.value = '';
+            
+            showError(`Added stop: ${stopName} (${agency} #${stopId})`, 'success');
+        }
+        
+        // Fetch arrivals for all stops
+        function fetchAllBusArrivals() {
+            busStopsContainer.innerHTML = '';
+            loadingElement.style.display = 'block';
+            busStopsContainer.appendChild(loadingElement);
+            
+            const promises = busStops.map(stop => fetchBusArrivals(stop));
+            
+            Promise.all(promises)
+                .then(() => {
+                    loadingElement.style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error fetching bus arrivals:', error);
+                    showError('Failed to fetch bus arrivals. Please check your API key and stop IDs.');
+                    loadingElement.style.display = 'none';
+                });
+        }
+        
+        // Fetch arrivals for a single stop
+        function fetchBusArrivals(stop) {
+            // In a real implementation, this would make an API call to 511.org
+            // For demo purposes, we'll simulate the API response
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // Create a stop element
+                    const stopElement = document.createElement('div');
+                    stopElement.className = 'stop';
+                    
+                    const stopNameElement = document.createElement('div');
+                    stopNameElement.className = 'stop-name';
+                    stopNameElement.textContent = stop.name;
+                    
+                    stopElement.appendChild(stopNameElement);
+                    
+                    // Simulate 2-4 bus arrivals
+                    const numberOfArrivals = Math.floor(Math.random() * 3) + 2;
+                    const busRoutes = ['14', '38R', '1', '22', '5', '30', '45', 'N'];
+                    const destinations = ['Downtown', 'Taraval St', 'Financial District', 'Marina', 'Sunset', 'Richmond', 'Daly City'];
+                    
+                    for (let i = 0; i < numberOfArrivals; i++) {
+                        const busNumber = busRoutes[Math.floor(Math.random() * busRoutes.length)];
+                        const minutes = Math.floor(Math.random() * 30) + 1;
+                        const destination = destinations[Math.floor(Math.random() * destinations.length)];
+                        
+                        const arrivalElement = document.createElement('div');
+                        arrivalElement.className = 'arrival';
+                        
+                        const busNumberElement = document.createElement('span');
+                        busNumberElement.className = 'bus-number';
+                        busNumberElement.textContent = busNumber;
+                        
+                        const timeElement = document.createElement('span');
+                        timeElement.className = 'time';
+                        timeElement.textContent = `${minutes} min`;
+                        
+                        const destinationElement = document.createElement('span');
+                        destinationElement.className = 'destination';
+                        destinationElement.textContent = `To ${destination}`;
+                        
+                        arrivalElement.appendChild(busNumberElement);
+                        arrivalElement.appendChild(timeElement);
+                        arrivalElement.appendChild(destinationElement);
+                        
+                        stopElement.appendChild(arrivalElement);
+                    }
+                    
+                    // Add "Remove Stop" button
+                    const stopActions = document.createElement('div');
+                    stopActions.className = 'stop-actions';
+                    
+                    const removeButton = document.createElement('button');
+                    removeButton.textContent = 'Remove';
+                    removeButton.style.backgroundColor = '#d32f2f';
+                    removeButton.addEventListener('click', () => {
+                        const index = busStops.findIndex(s => 
+                            s.agency === stop.agency && s.stopId === stop.stopId);
+                        if (index !== -1) {
+                            busStops.splice(index, 1);
+                            stopElement.remove();
+                            
+                            // Save updated stops
+                            const settings = {
+                                apiKey,
+                                stops: busStops
+                            };
+                            localStorage.setItem('busTrackerSettings', JSON.stringify(settings));
+                        }
+                    });
+                    
+                    stopActions.appendChild(removeButton);
+                    stopElement.appendChild(stopActions);
+                    
+                    busStopsContainer.appendChild(stopElement);
+                    resolve();
+                }, 500);
+            });
+        }
+        
+        // Show error or success message
+        function showError(message, type = 'error') {
+            const errorElement = document.createElement('div');
+            errorElement.className = type === 'error' ? 'error' : 'error' + ' success';
+            errorElement.textContent = message;
+            errorElement.style.color = type === 'error' ? '#d32f2f' : '#388e3c';
+            errorElement.style.backgroundColor = type === 'error' ? '#ffebee' : '#e8f5e9';
+            
+            // Find where to insert the error
+            const formGroup = document.querySelector('.form-group');
+            formGroup.parentNode.insertBefore(errorElement, formGroup);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                errorElement.remove();
+            }, 3000);
+        }
+        
+        // Event listeners
+        addStopButton.addEventListener('click', addStop);
+        saveSettingsButton.addEventListener('click', saveSettings);
+        
+        editSettingsButton.addEventListener('click', () => {
+            setupContainer.style.display = 'block';
+            editSettingsButton.style.display = 'none';
+            
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+        
+        // Initialize
+        loadSettings();
+    </script>
+</body>
+</html>
