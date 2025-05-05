@@ -232,10 +232,8 @@
         }
         
         // Fetch stop information (name, etc.)
-        async function fetchStopInfo(stopId) {
-            // In a real implementation, you would call the 511.org API
-            // For now, we'll simulate stop names
-            const stopNames = {
+        async function fetchStopInfo(stopId) {{https://api.511.org/transit/StopMonitoring?api_key=c9b7f6c6-5dc7-409e-9ea5-e835b086a409&agency=SF&stopCode={stopId}}
+        
                 "13333": "Market St & 7th St",
                 "13334": "Market St & 8th St",
                 "15558": "Van Ness Ave & Market St",
@@ -268,9 +266,7 @@
         
         // Fetch predictions for a specific stop
         async function fetchStopPredictions(stopId) {
-            try {
-                // In a real implementation, you would call the 511.org API endpoint:
-                // https://api.511.org/transit/StopMonitoring?api_key=c9b7f6c6-5dc7-409e-9ea5-e835b086a409&agency=SF&stopCode={stopId}
+            try {https://api.511.org/transit/StopMonitoring?api_key=c9b7f6c6-5dc7-409e-9ea5-e835b086a409&agency=SF&stopCode={stopId}}
                 
                 // For demo purposes, we'll simulate the API response with realistic data
                 const data = await simulateStopPredictions(stopId);
