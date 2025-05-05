@@ -270,7 +270,7 @@
         async function fetchStopPredictions(stopId) {
             try {
                 // In a real implementation, you would call the 511.org API endpoint:
-                // https://api.511.org/transit/StopMonitoring?api_key={your_key}&agency=SF&stopCode={stopId}
+                // https://api.511.org/transit/StopMonitoring?api_key=c9b7f6c6-5dc7-409e-9ea5-e835b086a409&agency=SF&stopCode={stopId}
                 
                 // For demo purposes, we'll simulate the API response with realistic data
                 const data = await simulateStopPredictions(stopId);
@@ -283,59 +283,6 @@
                 displayError(stopId, error.message);
                 throw error;
             }
-        }
-        
-        // Simulate stop predictions (for demo purposes)
-        async function simulateStopPredictions(stopId) {
-            // Simulate network delay
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Create realistic mock data based on stop ID
-            const routes = {
-                "13333": ["F", "7", "9"],
-                "13334": ["F", "7", "9"],
-                "15558": ["49", "9", "J"],
-                "15557": ["49", "9", "J"],
-                "13471": ["14", "49", "22"],
-                "13472": ["14", "49", "22"],
-                "16216": ["F", "K", "L"],
-                "16217": ["F", "K", "L"]
-            };
-            
-            const destinations = {
-                "F": "Fisherman's Wharf",
-                "7": "Ortega/48th Ave",
-                "9": "Visitacion Valley",
-                "14": "Daly City BART",
-                "22": "SF State University",
-                "49": "City College",
-                "J": "Balboa Park",
-                "K": "Balboa Park",
-                "L": "SF Zoo"
-            };
-            
-            const stopRoutes = routes[stopId] || ["1", "14"];
-            const arrivals = [];
-            
-            // Generate 0-5 arrivals for each route
-            stopRoutes.forEach(route => {
-                const numArrivals = Math.floor(Math.random() * 3) + 1;
-                let lastTime = Math.floor(Math.random() * 5) + 1;
-                
-                for (let i = 0; i < numArrivals; i++) {
-                    arrivals.push({
-                        route: route,
-                        destination: destinations[route] || "Downtown",
-                        minutes: lastTime
-                    });
-                    lastTime += Math.floor(Math.random() * 10) + 5;
-                }
-            });
-            
-            // Sort by arrival time
-            arrivals.sort((a, b) => a.minutes - b.minutes);
-            
-            return arrivals;
         }
         
         // Display predictions in the UI
@@ -398,7 +345,7 @@
         
         // Function to implement the actual API call when ready
         async function callRealApi(stopId) {
-            const url = `https://api.511.org/transit/StopMonitoring?api_key=${API_KEY}&agency=SF&stopCode=${stopId}&format=json`;
+            const url = `https://api.511.org/transit/StopMonitoring?api_key=${c9b7f6c6-5dc7-409e-9ea5-e835b086a409}&agency=SF&stopCode=${stopId}&format=json`;
             
             const response = await fetch(url);
             if (!response.ok) {
