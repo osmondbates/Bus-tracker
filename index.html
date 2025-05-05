@@ -1,384 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SF MUNI Bus Tracker</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-        
-        h1 {
-            color: #0066cc;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .bus-stop {
-            background-color: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        .stop-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-        
-        .stop-name {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #0066cc;
-        }
-        
-        .stop-id {
-            background-color: #0066cc;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.9em;
-        }
-        
-        .arrivals {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .arrivals th {
-            text-align: left;
-            padding: 8px;
-            background-color: #f5f5f5;
-        }
-        
-        .arrivals td {
-            padding: 8px;
-            border-top: 1px solid #eee;
-        }
-        
-        .route {
-            font-weight: bold;
-            background-color: #0066cc;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            display: inline-block;
-            width: 40px;
-            text-align: center;
-        }
-        
-        .countdown {
-            font-weight: bold;
-        }
-        
-        .no-arrivals {
-            color: #999;
-            font-style: italic;
-            padding: 10px 0;
-        }
-        
-        .last-updated {
-            text-align: center;
-            margin-top: 20px;
-            color: #666;
-            font-size: 0.9em;
-        }
-        
-        .loading {
-            text-align: center;
-            color: #666;
-            font-style: italic;
-            padding: 20px;
-        }
-        
-        .error {
-            background-color: #ffeeee;
-            color: #cc0000;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        @media (max-width: 600px) {
-            body {
-                padding: 10px;
-            }
-            
-            .bus-stop {
-                padding: 10px;
-            }
-            
-            .arrivals th, .arrivals td {
-                padding: 5px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>MUNI Arrival Times</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+    }
+    .stop {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .stop h2 {
+      margin-top: 0;
+    }
+    .timestamp {
+      text-align: center;
+      margin-top: 20px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
-    <h1>SF MUNI Bus Tracker</h1>
-    <div id="error" class="error" style="display: none;"></div>
-    <div id="loading" class="loading">Loading bus arrival times...</div>
-    <div id="stops-container"></div>
-    <div class="last-updated">Last updated: <span id="update-time"></span></div>
+  <h1>MUNI Estimated Arrival/Departure Times</h1>
+  <div id="stops"></div>
+  <div class="timestamp" id="timestamp"></div>
 
-    <script>
-        // Configuration
-        const API_KEY = c9b7f6c6-5dc7-409e-9ea5-e835b086a409; // Replace with your actual 511.org API key
-        const STOPS = [
-            {id: "13333", name: "Loading..."},
-            {id: "13334", name: "Loading..."},
-            {id: "15558", name: "Loading..."},
-            {id: "15557", name: "Loading..."},
-            {id: "13471", name: "Loading..."},
-            {id: "13472", name: "Loading..."},
-            {id: "16216", name: "Loading..."},
-            {id: "16217", name: "Loading..."}
-        ];
-        const REFRESH_INTERVAL = 60000; // 1 minute in milliseconds
-        
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', () => {
-            createStopContainers();
-            fetchAllStopData();
-            
-            // Set up auto-refresh
-            setInterval(fetchAllStopData, REFRESH_INTERVAL);
+  <script>
+    const stopIds = [13333, 13334, 15558, 15557, 13471, 13472, 16216, 16217];
+    const token = "c9b7f6c6-5dc7-409e-9ea5-e835b086a409";
+    const stopsContainer = document.getElementById("stops");
+
+    async function fetchArrivalTimes(stopId) {
+      const url = `https://api.511.org/transit/StopMonitoring?api_key=${token}&agency=MUNI&stopCode=${stopId}`;
+      
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("API error");
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, "application/xml");
+
+        const arrivals = Array.from(xml.getElementsByTagName("MonitoredStopVisit")).map(visit => {
+          const line = visit.getElementsByTagName("PublishedLineName")[0]?.textContent;
+          const destination = visit.getElementsByTagName("DestinationName")[0]?.textContent;
+          const expected = visit.getElementsByTagName("ExpectedArrivalTime")[0]?.textContent || "N/A";
+          return { line, destination, expected };
         });
-        
-        // Create containers for each stop
-        function createStopContainers() {
-            const container = document.getElementById('stops-container');
-            
-            STOPS.forEach(stop => {
-                const stopElement = document.createElement('div');
-                stopElement.className = 'bus-stop';
-                stopElement.id = `stop-${stop.id}`;
-                
-                const header = document.createElement('div');
-                header.className = 'stop-header';
-                
-                const nameElement = document.createElement('div');
-                nameElement.className = 'stop-name';
-                nameElement.textContent = stop.name;
-                
-                const idElement = document.createElement('div');
-                idElement.className = 'stop-id';
-                idElement.textContent = `Stop #${stop.id}`;
-                
-                header.appendChild(nameElement);
-                header.appendChild(idElement);
-                
-                const arrivalsContainer = document.createElement('div');
-                arrivalsContainer.className = 'arrivals-container';
-                arrivalsContainer.innerHTML = '<p class="loading">Loading arrivals...</p>';
-                
-                stopElement.appendChild(header);
-                stopElement.appendChild(arrivalsContainer);
-                container.appendChild(stopElement);
-            });
+
+        return arrivals;
+      } catch (err) {
+        console.error("Fetch error:", err);
+        return null;
+      }
+    }
+
+    async function updateAllStops() {
+      stopsContainer.innerHTML = "";
+      const time = new Date().toLocaleTimeString();
+      document.getElementById("timestamp").textContent = `Last updated: ${time}`;
+
+      for (const stopId of stopIds) {
+        const arrivals = await fetchArrivalTimes(stopId);
+        const stopDiv = document.createElement("div");
+        stopDiv.className = "stop";
+        stopDiv.innerHTML = `<h2>Stop ID: ${stopId}</h2>`;
+
+        if (arrivals && arrivals.length) {
+          const list = arrivals.map(a => `
+            <div>Line <strong>${a.line}</strong> to ${a.destination} at ${new Date(a.expected).toLocaleTimeString()}</div>
+          `).join("");
+          stopDiv.innerHTML += list;
+        } else {
+          stopDiv.innerHTML += `<p>No arrivals found or error fetching data.</p>`;
         }
-        
-        // Fetch data for all stops
-        async function fetchAllStopData() {
-            const loadingElement = document.getElementById('loading');
-            const errorElement = document.getElementById('error');
-            
-            try {
-                loadingElement.style.display = 'block';
-                errorElement.style.display = 'none';
-                
-                // First fetch stop names if we don't have them
-                const namePromises = STOPS.map(async stop => {
-                    if (stop.name === "Loading...") {
-                        try {
-                            const stopInfo = await fetchStopInfo(stop.id);
-                            stop.name = stopInfo.name;
-                            updateStopName(stop.id, stopInfo.name);
-                        } catch (error) {
-                            console.error(`Error fetching stop info for ${stop.id}:`, error);
-                        }
-                    }
-                });
-                
-                await Promise.all(namePromises);
-                
-                // Then fetch arrivals for all stops
-                const arrivalPromises = STOPS.map(stop => fetchStopPredictions(stop.id));
-                const results = await Promise.all(arrivalPromises);
-                
-                // Update the timestamp
-                const now = new Date();
-                document.getElementById('update-time').textContent = now.toLocaleTimeString();
-                
-                loadingElement.style.display = 'none';
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                errorElement.textContent = `Error fetching data: ${error.message}`;
-                errorElement.style.display = 'block';
-                loadingElement.style.display = 'none';
-            }
-        }
-        
-        // Fetch stop information (name, etc.)
-        async function fetchStopInfo(stopId) {{https://api.511.org/transit/StopMonitoring?api_key=c9b7f6c6-5dc7-409e-9ea5-e835b086a409&agency=SF&stopCode={stopId}}
-        
-                "13333": "Market St & 7th St",
-                "13334": "Market St & 8th St",
-                "15558": "Van Ness Ave & Market St",
-                "15557": "Van Ness Ave & Market St",
-                "13471": "Mission St & 16th St",
-                "13472": "Mission St & 16th St",
-                "16216": "Castro St & Market St",
-                "16217": "Castro St & Market St"
-            };
-            
-            // Simulate API request delay
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            return {
-                id: stopId,
-                name: stopNames[stopId] || `Stop #${stopId}`
-            };
-        }
-        
-        // Update stop name in the UI
-        function updateStopName(stopId, name) {
-            const stopElement = document.getElementById(`stop-${stopId}`);
-            if (stopElement) {
-                const nameElement = stopElement.querySelector('.stop-name');
-                if (nameElement) {
-                    nameElement.textContent = name;
-                }
-            }
-        }
-        
-        // Fetch predictions for a specific stop
-        async function fetchStopPredictions(stopId) {
-            try {https://api.511.org/transit/StopMonitoring?api_key=c9b7f6c6-5dc7-409e-9ea5-e835b086a409&agency=SF&stopCode={stopId}}
-                
-                // For demo purposes, we'll simulate the API response with realistic data
-                const data = await simulateStopPredictions(stopId);
-                
-                // Process and display the data
-                displayPredictions(stopId, data);
-                return data;
-            } catch (error) {
-                console.error(`Error fetching predictions for stop ${stopId}:`, error);
-                displayError(stopId, error.message);
-                throw error;
-            }
-        }
-        
-        // Display predictions in the UI
-        function displayPredictions(stopId, predictions) {
-            const stopElement = document.getElementById(`stop-${stopId}`);
-            if (!stopElement) return;
-            
-            const arrivalsContainer = stopElement.querySelector('.arrivals-container');
-            
-            if (predictions.length === 0) {
-                arrivalsContainer.innerHTML = '<p class="no-arrivals">No upcoming arrivals</p>';
-                return;
-            }
-            
-            let html = `
-                <table class="arrivals">
-                    <thead>
-                        <tr>
-                            <th>Route</th>
-                            <th>Destination</th>
-                            <th>Arriving</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            predictions.forEach(prediction => {
-                html += `
-                    <tr>
-                        <td><span class="route">${prediction.route}</span></td>
-                        <td>${prediction.destination}</td>
-                        <td class="countdown">${formatArrivalTime(prediction.minutes)}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                    </tbody>
-                </table>
-            `;
-            
-            arrivalsContainer.innerHTML = html;
-        }
-        
-        // Display error for a specific stop
-        function displayError(stopId, message) {
-            const stopElement = document.getElementById(`stop-${stopId}`);
-            if (!stopElement) return;
-            
-            const arrivalsContainer = stopElement.querySelector('.arrivals-container');
-            arrivalsContainer.innerHTML = `<p class="error">Error: ${message}</p>`;
-        }
-        
-        // Format arrival time in minutes
-        function formatArrivalTime(minutes) {
-            if (minutes === 0) return "Now";
-            if (minutes === 1) return "1 min";
-            return `${minutes} mins`;
-        }
-        
-        // Function to implement the actual API call when ready
-        async function callRealApi(stopId) {
-            const url = `https://api.511.org/transit/StopMonitoring?api_key=${c9b7f6c6-5dc7-409e-9ea5-e835b086a409}&agency=SF&stopCode=${stopId}&format=json`;
-            
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            // Process the actual 511.org API response format
-            // This would need to be adjusted based on the actual response structure
-            
-            // Example processing:
-            const arrivals = [];
-            const visits = data?.ServiceDelivery?.StopMonitoringDelivery?.MonitoredStopVisit || [];
-            
-            visits.forEach(visit => {
-                const journey = visit.MonitoredVehicleJourney;
-                if (journey) {
-                    const route = journey.PublishedLineName || "Unknown";
-                    const destination = journey.DestinationName || "Unknown";
-                    const call = journey.MonitoredCall;
-                    
-                    if (call && call.ExpectedArrivalTime) {
-                        const arrivalTime = new Date(call.ExpectedArrivalTime);
-                        const now = new Date();
-                        const minutesUntil = Math.floor((arrivalTime - now) / 60000);
-                        
-                        arrivals.push({
-                            route: route,
-                            destination: destination,
-                            minutes: minutesUntil >= 0 ? minutesUntil : 0
-                        });
-                    }
-                }
-            });
-            
-            return arrivals;
-        }
-    </script>
+
+        stopsContainer.appendChild(stopDiv);
+      }
+    }
+
+    updateAllStops();
+    setInterval(updateAllStops, 60000); // every minute
+  </script>
 </body>
 </html>
