@@ -18,14 +18,13 @@ const stopIDs = [
 // Function to fetch data for a single stop
 const getStopData = async (stopID) => {
   const url = `https://api.transitapp.com/v3/stops/${stopID}`;  // API URL
-  const headers = {
-    'Authorization': 'Bearer YOUR_API_KEY', // Replace with your API key
-  };
 
   try {
-    const response = await fetch(url, { headers });
+    const response = await fetch(url);
     const data = await response.json();
-    
+
+    console.log(data);  // Log the API response to the console
+
     // Adjust based on the actual API response structure
     return {
       stopName: data.stop.name,
@@ -35,6 +34,7 @@ const getStopData = async (stopID) => {
     console.error('Error fetching data for stop ID:', stopID, error);
   }
 };
+
 
 // Function to fetch data for all stops and display it
 const fetchStopData = async () => {
