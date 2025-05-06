@@ -78,9 +78,14 @@
         stopDiv.innerHTML = `<h2>Stop ID: ${stopId}</h2>`;
 
         if (arrivals && arrivals.length) {
-          const list = arrivals.map(a => `
-            <div>Line <strong>${a.line}</strong> to ${a.destination} at ${new Date(a.expected).toLocaleTimeString()}</div>
-          `).join("");
+         const list = arrivals.map(a => {
+  const arrivalTime = new Date(a.expected);
+  const now = new Date();
+  const minutesAway = Math.round((arrivalTime - now) / 60000); // ms to minutes
+
+  return `<div>Line <strong>${a.line}</strong> to ${a.destination} — arriving in ${minutesAway} min</div>`;
+}).join("");
+
           stopDiv.innerHTML += list;
         } else {
           stopDiv.innerHTML += `<p>No arrivals found or error fetching data.</p>`;
